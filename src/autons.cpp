@@ -200,7 +200,7 @@ void skills(){
 	pros::delay(100);
 	clampPiston.set_value(true);
 	pros::delay(200);//53.3, 15.8     54,1.6
-	
+	//pre titan reset
 	goalReset(16.43,13.606);
 
 
