@@ -36,14 +36,20 @@
 
 #include "api.h"
 #include "lemlib/api.hpp"
+#include "TitanReset/TitanReset.hpp"
+extern tr_chassis dsr_system;
 bool checkRed(double hue);
 bool checkBlue(double hue);
+bool checkColor(double hue);
+extern bool clamped;
 extern lemlib::Chassis chassis;
+extern pros::Distance liftDistance;
 extern double liftTaskTarget;
 extern pros::MotorGroup right_motor_group;
 extern pros::MotorGroup left_motor_group;
 extern pros::Controller master;
 extern bool blue;
+extern pros::Imu imu;
 extern pros::Distance clampDistance;
 extern pros::MotorGroup lift;
 extern pros::ADIDigitalOut clampPiston;
@@ -94,4 +100,4 @@ void opcontrol(void);
 //#include <iostream>
 #endif
 
-#endif  // _PROS_MAIN_H_
+#endif  /* _PROS_MAIN_H_*/

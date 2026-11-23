@@ -8,6 +8,9 @@ pros::Distance liftDistance(16);
 pros::MotorGroup right_motor_group({12,13}, pros::v5::MotorGears::blue, pros::v5::MotorUnits::rotations);
 pros::MotorGroup left_motor_group({-19,-20}, pros::v5::MotorGears::blue, pros::v5::MotorUnits::rotations);
 
+//pros::MotorGroup right_motor_group({21,-10,1}, pros::v5::MotorGears::blue, pros::v5::MotorUnits::rotations);
+//pros::MotorGroup left_motor_group({-9,8,2}, pros::v5::MotorGears::blue, pros::v5::MotorUnits::rotations);
+
 
 pros::Distance clampDistance(4);
 pros::MotorGroup lift({17,-18,15}, pros::v5::MotorGears::blue, pros::v5::MotorUnits::rotations);
@@ -28,6 +31,14 @@ bool checkBlue(double hue){
 }
 bool checkRed(double hue){
 	return ( hue<15 || hue>342);
+}
+bool checkColor(double hue){
+	if (blue){
+		return checkBlue(hue);
+	}
+	else{
+		return checkRed(hue);
+	}
 }
 double lowEndGain = 0;
 double driverCurve(double stick) {
@@ -99,6 +110,30 @@ lemlib::Chassis chassis(drivetrain, // drivetrain settings
                         angular_controller, // angular PID settings
                         sensors // odometry sensors
 );
+
+tr_sensor north({1+(1/16), -3.75}, 10);
+/**
+ * East sensor
+ * X is your parrallel offset
+ * Y is your perpendicular offset
+ * P is the port of your sensor
+ */
+tr_sensor east({5+(13/16), 1+(1/16)}, 2);
+/**
+ * South sensor
+ * X is your parrallel offset
+ * Y is your perpendicular offset
+ * P is the port of your sensor
+ */
+tr_sensor south({4.861, 5.25}, 3);
+/**
+ * West sensor
+ * X is your parrallel offset
+ * Y is your perpendicular offset
+ * P is the port of your sensor
+ */
+tr_sensor west({5.7, -0.75-(1/32)}, 21);
+tr_chassis dsr_system(&chassis, {&north, &east, &south, &west}, tr_fields::plastic);
 
 double liftTaskTarget =0;
 //autonamous lift control 
@@ -203,7 +238,7 @@ void disabled() {}
 void competition_initialize() {
 	
 	chassis.calibrate();
-	
+	//dsr_system.perform_dsr_init(tr_quadrant::POS_NEG, 180);
 	chassis.setPose(0,0,180);
 	pros::Task scaleTask(imuScaleTask);
 	pros::Task liftTaskTask(liftTask);
@@ -221,8 +256,10 @@ void competition_initialize() {
  * from where it left off.
  */
 void autonomous() {
-	skills();
-	//matchAuto();
+	
+	//skills();
+	matchAuto();
+	
 }
 
 /**
@@ -245,7 +282,8 @@ bool clamped = false;
 
 void opcontrol() {
 	
-	/* // Creates a motor group with forwards port 5 and reversed ports 4 & 6
+	/*left_motor_group.move_voltage(2000);
+	right_motor_group.move_voltage(2000);
 	lift.tare_position_all();
 
 
@@ -253,66 +291,88 @@ void opcontrol() {
 	//master.rumble("-");
 	//liftTaskTarget=55;
 	liftTaskTarget=150;
-	roller.move_voltage(12000);
-	while(!checkRed(rollerOpticalRight.get_hue())){
+	roller.tare_position();
+	roller.move_relative(3,600);
+	while(!checkColor(rollerOpticalRight.get_hue())&&roller.get_target_velocity()!=0){
+		//pros::lcd::set_text(3, std::to_string(roller.get_current_draw()));
+		if(roller.get_position()>2.9){
+			roller.tare_position();
+			roller.move_relative(3,600);
+		}
 		pros::delay(10);
 	}
-	//pros::delay(200);//if red
+	//pros::delay(100);//if red
 	
 	roller.move_voltage(0);
-	chassis.moveToPoint(-5,-14.8,1000,{.forwards=false,.minSpeed=10,.earlyExitRange=7},false);
-	chassis.turnToPoint(-18,-14.8,1000,{.forwards=false,.minSpeed=70,.earlyExitRange=15},false);
-	chassis.moveToPoint(-18,-14.8,700,{.forwards=false,.maxSpeed=50},false);
+	chassis.moveToPoint(5,14.8,1000,{.forwards=false,.minSpeed=10,.earlyExitRange=7},false);
+	chassis.turnToPoint(16.43,13.606,1000,{.forwards=false,.minSpeed=70,.earlyExitRange=15},false);
+	chassis.moveToPoint(16.43,13.606,1100,{.forwards=false,.maxSpeed=70,.minSpeed=70},true);
+	pros::delay(600);
 	
 	liftTaskTarget=90;
 	pros::delay(200);
 	clampPiston.set_value(true);
-	pros::delay(200);
-	chassis.moveToPoint(-10,-28,2000,{},false);
-	lift.move_absolute(0,400);
-	chassis.turnToPoint(-18.07,-40.57,1000,{.forwards=false},false);
-	chassis.moveToPoint(-18.07,-40.57,1000,{.forwards=false,.maxSpeed=65,.minSpeed=15,.earlyExitRange=10},false);
+	pros::delay(100);
+	goalReset(16.43,13.606);
 	
-	chassis.moveToPoint(-18.07,-40.57,1000,{.forwards=false,.maxSpeed=30},true);
-	while(clampDistance.get_distance()>50.8){
+	chassis.moveToPoint(10,26,2000,{},false);
+	lift.move_absolute(0,400);
+	//chassis.turnToHeading(225,1000,{.minSpeed=10,.earlyExitRange=2},false);
+	chassis.turnToPoint(16,37.4,1000,{.forwards=false},false);
+	chassis.moveToPoint(16,37.4,1000,{.forwards=false,.maxSpeed=75,.minSpeed=15,.earlyExitRange=10},false);
+	
+	chassis.moveToPoint(16,37.4,1000,{.forwards=false,.maxSpeed=30},true);
+	x=0;
+	while(clampDistance.get_distance()>50.8&&x<200){
 		pros::delay(10);
+		x++;
 	}
 	clampPiston.set_value(false);
 	pros::delay(200);
 	liftTaskTarget=175;
 	chassis.cancelMotion();
-	chassis.turnToPoint(-18,-15,1000,{.forwards=false,.minSpeed=50,.earlyExitRange=30},false);
-	chassis.moveToPoint(-18,-15,1000,{.forwards=false,.maxSpeed=82,.minSpeed=40,.earlyExitRange=15},false);
-	chassis.moveToPoint(-18,-15,300,{.forwards=false,.maxSpeed=50},false);
+	chassis.turnToHeading(0,1000,{.minSpeed=2,.earlyExitRange=1},false);
+	chassis.moveToPoint(16.43,13.606,1000,{.forwards=false,.maxSpeed=92,.minSpeed=40,.earlyExitRange=15},false);
+	chassis.moveToPoint(16.43,13.606,600,{.forwards=false,.maxSpeed=50},true);
+	pros::delay(300);
 	liftTaskTarget=85;
 	pros::delay(200);
 	clampPiston.set_value(true);
 	pros::delay(100);
-	//chassis.moveToPoint(-34,-36,1500,{},false);
-	chassis.turnToPoint(-24,-26,1000,{.maxSpeed=100,.minSpeed=50,.earlyExitRange=10},false);
-	chassis.moveToPoint(-24,-26,1000,{.maxSpeed=100,.minSpeed=15,.earlyExitRange=3},false);
+	goalReset(16.43,13.606);
 	
-	chassis.turnToPoint(-43.03,-15.85,1000,{.forwards=false},false);
+	//chassis.moveToPoint(34,36,1500,{},false);
+	chassis.turnToPoint(27,28,1000,{.maxSpeed=100,.minSpeed=50,.earlyExitRange=1},false);
+	chassis.moveToPoint(27,28,1000,{.minSpeed=10,.earlyExitRange=1},false);
+	
+	chassis.turnToPoint(41,12.943,1000,{.forwards=false},false);
 	lift.move_absolute(0,400);
-	chassis.moveToPoint(-43.03,-15.85,1000,{.forwards=false,.maxSpeed=65,.minSpeed=15,.earlyExitRange=10},false);
-	chassis.moveToPoint(-43.03,-15.85,2000,{.forwards=false,.maxSpeed=30},true);
-	
-	while(clampDistance.get_distance()>50.8){
+	chassis.moveToPoint(41,12.943,1000,{.forwards=false,.maxSpeed=65,.minSpeed=15,.earlyExitRange=10},false);
+	chassis.moveToPoint(41,12.943,2000,{.forwards=false,.maxSpeed=30},true);
+	x=0;
+	while(clampDistance.get_distance()>50.8&& x<200){
 		pros::delay(10);
 		master.rumble(".");
+		x++;
 	}
 	clampPiston.set_value(false);
 	pros::delay(200);
+	
 	liftTaskTarget=360;
 	chassis.cancelMotion();
-	chassis.turnToPoint(-18,-14.8,1000,{.forwards=false,.minSpeed=50,.earlyExitRange=30},false);
-	chassis.moveToPoint(-18,-14.8,1000,{.forwards=false,.maxSpeed=82,.minSpeed=15,.earlyExitRange=15},false);
-	chassis.moveToPoint(-18,-14.8,300,{.forwards=false,.maxSpeed=50},false);
-	lift.move_absolute(0,400);
-	pros::delay(100);
+	chassis.turnToPoint(16.43,13.606,1000,{.forwards=false,.minSpeed=50,.earlyExitRange=30},false);
+	chassis.turnToHeading(90,1000,{.minSpeed=2,.earlyExitRange=2});
+	chassis.moveToPoint(16.43,13.606,1000,{.forwards=false,.maxSpeed=92,.minSpeed=40,.earlyExitRange=16},false);
+	chassis.moveToPoint(16.43,13.606,600,{.forwards=false,.maxSpeed=50},true);
+	pros::delay(300);
+	lift.move_relative(-1.3,400);
+	pros::delay(300);
 	clampPiston.set_value(true);
-	clamped=true;
-	lift.move_absolute(0,400);*/
+	pros::delay(100);
+	goalReset(16.43,13.606);
+	lift.move_absolute(0,400);
+	homing = true;
+	clamped=true;*/
 
 	while (true) {
 
@@ -354,9 +414,16 @@ void opcontrol() {
         //lift
         if(master.get_digital(DIGITAL_A)){
 			lift.move_relative(1.5,600);
-			pros::delay(300);
+			pros::delay(500);
 			clampPiston.set_value(false);
-			lift.move_relative(2,600);
+			lift.move_relative(2.5,600);
+			homing=true;
+		}
+		if(master.get_digital(DIGITAL_B)){
+			lift.move_relative(1.5,600);
+			pros::delay(500);
+			clampPiston.set_value(false);
+			lift.move_relative(2.5,600);
 			homing=true;
 		}
 
